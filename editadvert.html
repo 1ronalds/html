@@ -4,7 +4,8 @@
         <link rel="stylesheet" type="text/css" href="styles.css">
     </head>
 <body>
-
+    <script src="script.js"></script>
+    </script>
     <div>
         <div>
             <a href="adverts.html">All advertisments</a>
@@ -20,13 +21,16 @@
         <a id="logout" href="adverts.html" onclick="logout()">Logout</a>
         </div>
     </div>
-    <h1>Applications to mine advertisments</h1>
-    <div id="applications"></div>
-    <script src="script.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function(event) {
-            fetchToMineApplications();
-    });
-    </script>
+    <h1>Edit advert</h1>
+
+    <form id="advertEditForm">
+        <input type="text" id="title" placeholder="Title" required>
+        <textarea id="description" placeholder="Description" required></textarea>
+        <input type="decimal" id="price" placeholder="Price" required>
+        <input type="file" id="image" accept="image/*" required>
+        <button type="submit">Upload</button>
+      </form>
+      
+
 </body>
 </html>

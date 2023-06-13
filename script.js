@@ -1,7 +1,3 @@
-window.onload = function() {
-  displayloginregisteretc();
-};
-
 function getCookie(name) {
   var nameEQ = name + "=";
   var ca = document.cookie.split(';');
@@ -47,6 +43,7 @@ function fetchAllAdverts() {
           html += '<img src="' + advert.imgLocation + '">';
           html += '<a href="/advert.html?id=' + advert.advertID +'">' + advert.title + '</a>';
           html += '<p>Price: $' + advert.price.toFixed(2) + '</p>';
+          html += '<a href="#" onclick="apply(' + advert.advertID + ')">[Apply]</a>';
           html += '</div>';
         }
         document.getElementById('advertisments').innerHTML = html; // Update the HTML
@@ -134,6 +131,8 @@ function fetchMyAdverts(){
         html += '<img src="' + advert.imgLocation + '">';
         html += '<a href="/advert.html?id=' + advert.advertID +'">' + advert.title + '</a>';
         html += '<p>Price: $' + advert.price.toFixed(2) + '</p>';
+        html += '<a href="#" onclick="deleteAdvert(' + advert.advertID + ')">[Delete]</a>';
+        html += '<a href="/editadvert.html?advertId=' + advert.advertID + '">[Edit]</a>';
         html += '</div>';
       }
       document.getElementById('advertisments').innerHTML = html; // Update the HTML
@@ -142,6 +141,28 @@ function fetchMyAdverts(){
       alert("Session expired, please log in again");
     });
 }
+
+function deleteAdvert(advertID){
+  var username = getCookie("username");
+  fetch('http://localhost:8080/api/advert/delete/' + username + '/' + advertID,
+  {
+    method: 'DELETE',
+    headers: {
+      Authorization: getCookie("Authorization")
+  }})
+  .then(response => {
+    if (!response.ok && response.status == 400) {
+      throw Error();
+    } else {
+      alert("deletion successful");
+      location.reload(true);
+      window.location.href = '/myadverts.html';
+    }})
+    .catch(error => {
+      alert("Session expired, please log in again");
+    });
+}
+
 
 function uploadAdvert() {
     var username = getCookie("username");
@@ -163,56 +184,217 @@ function uploadAdvert() {
         imgData: base64Image
       };
   
-      fetch('http://localhost:8080/api/advert/new/' + username, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + getCookie('Authorization')
-        },
-        body: JSON.stringify(advertUploadDto)
-      })
-      .then(response => response.json())
-      .then(data => {
-        if(data.status === 200) {
-          alert("Advert uploaded successfully");
-          window.location.href = '/adverts.html';
-        } else {
-          throw Error();
-        }
-      })
-      .catch(error => {
-        console.log(error);
-      });
+fetch('http://localhost:8080/api/advert/new/' + username, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + getCookie('Authorization')
+  },
+  body: JSON.stringify(advertUploadDto)
+})
+.then(response => {
+  if (response.status === 204) {
+    alert("Advert uploaded successfully");
+    window.location.href = '/adverts.html';
+  } else {
+    throw Error();
+  }
+})
+.catch(error => {
+  alert("Error uploading advert");
+});
     };
 }
 
 function fetchToMineApplications(){
     var username = getCookie("username");
-    fetch('http://localhost:8080/api/application/mine/' + username + '/formine',{
+    fetch('http://localhost:8080/api/application/formine/' + username,{
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + getCookie('Authorization')
     }})
     .then(response => {
+      console.log(response);
       if (!response.ok && response.status === 400) {
         throw Error();
       } else {
         return response.json(); 
       }})
       .then(data => {
+        console.log(data);
         var html = '';
         for (var i = 0; i < data.length; i++) {
             var advert = data[i];
             html += '<div class="advert">';
-            html += '<img src="' + advert.imgLocation + '">';
-            html += '<h3><a href="/advert.html?id=' + advert.advertID +'">' + advert.title + '</a></h3>';
-            html += '<p>Price: $' + advert.price.toFixed(2) + '</p>';
-            html += '<p>Posted by: ' + username + '</p>';
+            html += '<h3><a href="/advert.html?id=' + advert.advertMinimalDto.advertID +'">' + advert.advertMinimalDto.title + '</a></h3>';
+            html += '<p>Applied by: ' + advert.username + '</p>';
             html += '</div>';
         }
-        document.getElementById('applications').innerHTML = html; // Assume you have a div with id "applications" 
+        document.getElementById('applications').innerHTML = html;
     })
     .catch(error => {
         console.error('Error:', error);
     });
+}
+
+function deleteCookie(name) {
+  document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+}
+
+function logout(){
+  deleteCookie("Authorization");
+  deleteCookie("username");
+}
+
+if(window.location.pathname.endsWith('register.html')) {
+document.getElementById('registrationForm').addEventListener('submit', function(event) {
+  event.preventDefault();
+  
+  var username = document.getElementById('username').value;
+  var email = document.getElementById('email').value;
+  var password = document.getElementById('password').value;
+  var phone = document.getElementById('phone').value;
+
+  var userEntity = {
+      username: username,
+      email: email,
+      password: password,
+      phone: phone
+  };
+
+  fetch('http://localhost:8080/api/user', {
+  method: 'POST',
+  headers: {
+      'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(userEntity)
+  })
+  .then(response => {
+    console.log(response);
+  if (response.status === 204) {
+    alert("Registration successful");
+    window.location.href = '/login.html';
+  } else {
+    throw Error();
+  }
+  })
+  .catch(error => {
+    alert("Registration failed");
+    console.log(error);
+  });
+});
+}
+
+function fetchFromMineApplications(){
+  var username = getCookie("username");
+  fetch('http://localhost:8080/api/application/forothers/' + username,{
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + getCookie('Authorization')
+    }})
+    .then(response => {
+      console.log(response);
+      if (!response.ok && response.status == 400) {
+        throw Error();
+      } else {
+        return response.json(); 
+      }})
+      .then(data => {
+        console.log(data);
+        var html = '';
+        for (var i = 0; i < data.length; i++) {
+            var advert = data[i];
+            html += '<div class="advert">';
+            html += '<h3><a href="/advert.html?id=' + advert.advertMinimalDto.advertID +'">' + advert.advertMinimalDto.title + '</a></h3>';
+            html += '</div>';
+        }
+        document.getElementById('applications').innerHTML = html;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function apply(id){
+  var username = getCookie("username");
+  var application = {
+    advertMinimalDto:{
+      advertID: id
+    },
+    username: username
+};
+  fetch('http://localhost:8080/api/application/mine/' + username,
+  {
+    method: 'POST',
+    body: JSON.stringify(application),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': getCookie("Authorization"),
+  }})
+  .then(response => {
+    console.log(response);
+    if (!response.ok && response.status == 400) {
+      throw Error();
+    } else {
+      return response.json(); 
+    }})
+  .then(data => {
+    console.log(data);
+    alert("application successful");
+    })
+    
+    .catch(error => {
+      alert("Session expired, please log in again");
+    });
+}
+//eveent where page is loaded
+
+
+
+
+window.onload = function() {
+  displayloginregisteretc();
+
+if(window.location.pathname.endsWith('editadvert.html')) {
+  document.getElementById('advertEditForm').addEventListener('submit', function(event) {
+    console.log("submit");
+    var advertID = getQueryParam("advertId");
+    var username = getCookie("username");
+    event.preventDefault();
+    var title = document.getElementById('title').value;
+    var description = document.getElementById('description').value;
+    var price = document.getElementById('price').value;
+    var imageFile = document.getElementById('image').files[0];
+    var reader = new FileReader();
+    reader.readAsDataURL(imageFile);
+    reader.onload = function() {
+      var base64Image = reader.result.split(',')[1];
+  
+      var advertUploadDto = {
+        title: title,
+        description: description,
+        price: price,
+        imgName: imageFile.name,
+        imgData: base64Image
+      };
+  
+fetch('http://localhost:8080/api/advert/edit/' + username + '/' + advertID, {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + getCookie('Authorization')
+  },
+  body: JSON.stringify(advertUploadDto)
+})
+.then(response => {
+  if (response.status === 204) {
+    alert("Advert edited successfully");
+    window.location.href = '/myadverts.html';
+  } else {
+    throw Error();
+  }
+})
+.catch(error => {
+  alert("Error uploading advert");
+});};});}
 }
