@@ -11,6 +11,7 @@ function getCookie(name) {
 
 function displayloginregisteretc(){
     var token = getCookie("Authorization");
+    try {
     if (token == null || token == "") {
         document.getElementById("login").style.display = "block";
         document.getElementById("register").style.display = "block";
@@ -28,13 +29,14 @@ function displayloginregisteretc(){
         document.getElementById("myapplications").style.display = "block";
         document.getElementById("applicationstomine").style.display = "block";
     }
+  } catch(error){}
 }
 
 function fetchAllAdverts() {
     fetch('http://localhost:8080/api/advert/view/all')
       .then(response => response.json())
       .then(data => {
-        var adverts = data; // Assign the fetched data to the adverts variable
+        var adverts = data;
   
         var html = '';
         for (var i = 0; i < adverts.length; i++) {
@@ -46,7 +48,7 @@ function fetchAllAdverts() {
           html += '<a href="#" onclick="apply(' + advert.advertID + ')">[Apply]</a>';
           html += '</div>';
         }
-        document.getElementById('advertisments').innerHTML = html; // Update the HTML
+        document.getElementById('advertisments').innerHTML = html;
   
       });
   }
@@ -78,11 +80,20 @@ function fetchAllAdverts() {
     event.preventDefault();
     var username = document.getElementById('username').value;
     var password = document.getElementById('password').value;
-  
+    var isAdmin;
     var credentials = {
       username: username,
       password: password
     };
+
+    fetch('http://localhost:8080/api/admin/isadmin/' + username, {
+      method: 'GET' })
+      .then(response => response.json())
+      .then(data => {
+        isAdmin = data;
+      }).catch(error => {
+        console.log(response);
+      });
   
     fetch('http://localhost:8080/api/authenticate', {
       method: 'POST',
@@ -102,11 +113,16 @@ function fetchAllAdverts() {
       var token = data.authorization;
       document.cookie = "Authorization=" + token + "; path=/";
       document.cookie = "username=" + username + "; path=/";
+      if(isAdmin == true){
+        window.location.href = '/admin.html';
+      } else {
       window.location.href = '/adverts.html';
+      }
     })
     .catch(error => {
       alert("Invalid username/password");
     });
+
 }
 
 function fetchMyAdverts(){
@@ -123,7 +139,7 @@ function fetchMyAdverts(){
       return response.json(); 
     }})
   .then(data => {
-      var adverts = data; // Assign the fetched data to the adverts variable
+      var adverts = data;
       var html = '';
       for (var i = 0; i < adverts.length; i++) {
         var advert = adverts[i];
@@ -135,7 +151,7 @@ function fetchMyAdverts(){
         html += '<a href="/editadvert.html?advertId=' + advert.advertID + '">[Edit]</a>';
         html += '</div>';
       }
-      document.getElementById('advertisments').innerHTML = html; // Update the HTML
+      document.getElementById('advertisments').innerHTML = html;
     })
     .catch(error => {
       alert("Session expired, please log in again");
@@ -306,6 +322,7 @@ function fetchFromMineApplications(){
             var advert = data[i];
             html += '<div class="advert">';
             html += '<h3><a href="/advert.html?id=' + advert.advertMinimalDto.advertID +'">' + advert.advertMinimalDto.title + '</a></h3>';
+            html += '<a href="#" onclick="deleteApplication(' + advert.applicationId + ')">[Delete application]</a>';
             html += '</div>';
         }
         document.getElementById('applications').innerHTML = html;
@@ -333,27 +350,27 @@ function apply(id){
   }})
   .then(response => {
     console.log(response);
-    if (!response.ok && response.status == 400) {
+    if (response.status == 400) {
       throw Error();
     } else {
-      return response.json(); 
+      alert("application successful");
     }})
-  .then(data => {
-    console.log(data);
-    alert("application successful");
-    })
-    
     .catch(error => {
       alert("Session expired, please log in again");
     });
 }
-//eveent where page is loaded
-
-
-
 
 window.onload = function() {
+
   displayloginregisteretc();
+
+if(window.location.pathname.endsWith('admin.html')) {
+  fetchAllAdvertsAsAdmin();
+}
+
+if(window.location.pathname.endsWith('adminlist.html')) {
+  fetchAdminList();
+}
 
 if(window.location.pathname.endsWith('editadvert.html')) {
   document.getElementById('advertEditForm').addEventListener('submit', function(event) {
@@ -396,5 +413,99 @@ fetch('http://localhost:8080/api/advert/edit/' + username + '/' + advertID, {
 })
 .catch(error => {
   alert("Error uploading advert");
-});};});}
+});
+};
+});
+}
+}
+
+function deleteApplication(applicationId){
+  var username = getCookie("username");
+  fetch('http://localhost:8080/api/application/mine/' + username + '/' + applicationId, {
+  method: 'DELETE',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + getCookie('Authorization')
+  },
+})
+.then(response => {
+  if (response.status === 204) {
+    alert("Application deleted sucessfully");
+    window.location.href = '/myapplications.html';
+  } else {
+    throw Error();
+  }
+})
+.catch(error => {
+  alert("Error deleting application");
+  console.log(response);
+});
+
+}
+
+function fetchAllAdvertsAsAdmin() {
+  fetch('http://localhost:8080/api/advert/view/all')
+    .then(response => response.json())
+    .then(data => {
+      var adverts = data;
+
+      var html = '';
+      for (var i = 0; i < adverts.length; i++) {
+        var advert = adverts[i];
+        html += '<div class="advert">';
+        html += '<img src="' + advert.imgLocation + '">';
+        html += '<a href="/advert.html?id=' + advert.advertID +'">' + advert.title + '</a>';
+        html += '<p>Price: $' + advert.price.toFixed(2) + '</p>';
+        html += '<a href="#" onclick="deleteAsAdmin(' + advert.advertID + ')">[Delete]</a>';
+        html += '</div>';
+      }
+      document.getElementById('advertisments').innerHTML = html;
+
+    });
+}
+
+function deleteAsAdmin(advertID){
+
+  var username;
+  fetch('http://localhost:8080/api/advert/view/advert/' + advertID)
+    .then(response => response.json())
+    .then(data => {
+      username = data.userName;
+      fetch('http://localhost:8080/api/advert/delete/' + username + '/' + advertID,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: getCookie("Authorization")
+      }})
+      .then(response => {
+        if (!response.ok && response.status != 204) {
+          throw Error();
+        } else {
+          alert("deletion successful"); 
+          location.reload(true);
+          window.location.href = '/admin.html';
+        }})
+        .catch(error => {
+          alert("You arent allowed to delete this advert");
+        });
+    }
+  );
+}
+
+function fetchAdminList(){
+  fetch('http://localhost:8080/api/admin/admin-users')
+    .then(response => response.json())
+    .then(data => {
+      var admins = data;
+
+      var html = '';
+      for (var i = 0; i < admins.length; i++) {
+        var admin = admins[i];
+        html += '<div class="admin">';
+        html += '<p>' + admin.username + '</p>';
+        html += '</div>';
+      }
+      document.getElementById('admins').innerHTML = html;
+
+    });
 }
