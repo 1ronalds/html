@@ -1,0 +1,8 @@
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+}
+.nav-left, .nav-right {
+    display: flex;
+    gap: 10px;  /* Adjust as needed for space between links */
+}
